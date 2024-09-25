@@ -7,6 +7,12 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import axios from "axios";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { url } from "@/lib/constants";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 const LoginSchema = z.object({
   email: z
@@ -22,14 +28,31 @@ const LoginSchema = z.object({
 type LoginType = z.infer<typeof LoginSchema>;
 
 export default function SignInForm() {
+  const [pending, setPending] = useState(false);
+  const router = useRouter();
+
   const form = useForm<LoginType>({
     resolver: zodResolver(LoginSchema),
     defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = (values: LoginType) => {
-    console.log(values);
+  const onSubmit = async (values: LoginType) => {
+    setPending(true);
+    axios
+      .create({ withCredentials: true })
+      .patch(`${url}/v1/signin`, values)
+      .then((res) => {
+        toast.success(res?.data?.message);
+        router.refresh();
+        router.push("/");
+      })
+      .catch((err) => {
+        console.log(err);
+        toast.error(err?.response?.data?.error || err.message);
+      })
+      .finally(() => setPending(false));
   };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -40,7 +63,7 @@ export default function SignInForm() {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="Email" {...field} />
+                <Input disabled={pending} type="email" placeholder="Email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -53,13 +76,14 @@ export default function SignInForm() {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Password" {...field} />
+                <Input disabled={pending} type="password" placeholder="Password" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
+        <Button disabled={pending} type="submit" className="w-full">
+          {pending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Submit
         </Button>
         <div className="flex justify-center">
